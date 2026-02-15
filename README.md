@@ -1,20 +1,23 @@
 # Tetsuo AI - Image & Video Generation Model
 
-Fine-tuned LoRA adapters for generating the **Tetsuo AI** character using [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (images) and [WAN 2.2](https://github.com/Wan-Video/Wan2.2) (video).
+Uncensored, hyper-realistic LoRA adapters for [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (images) and [WAN 2.2](https://github.com/Wan-Video/Wan2.2) (video). Built for high-definition generative output with no content restrictions, aligned with Tetsuo AI's open-source ethos.
 
-Uncensored, open-source, high-definition generative models aligned with Tetsuo's open-source ethos.
+## Uncensored and Open Source
 
-## Character
+These models are trained without safety filters or content restrictions. We believe generative AI should be open, transparent, and free from arbitrary censorship. Released under Apache 2.0 for personal and commercial use.
 
-The Tetsuo character operates in two rendering modes:
+## Hyper-Realistic Output
 
-**Manga Mode** — High-contrast black-and-white. Heavy ink work, aggressive linework, seinen manga aesthetic with hatching, speed lines, and mechanical detail. Straight from Tsutomu Nihei and Masamune Shirow's visual vocabulary.
+Fine-tuned with a focus on high-definition, photorealistic rendering. The models produce sharp, cinematic output with realistic lighting, textures, depth of field, and strong temporal consistency (video). Trained in bfloat16 for maximum detail and visual fidelity.
 
-**Cyberpunk Mode** — 3D-rendered cinematic portraiture. Volumetric lighting, neon blue highlights, rain, dark metallic surfaces, shallow depth of field. Blade Runner meets Ghost in the Shell.
+## Character Training
 
-**Visual anchor:** Female character, sharp platinum/silver bob hair, pale skin, intense eyes, black tactical/armored suit. Cold, operational, unbothered.
+The initial training run focuses on the Tetsuo AI character, a cyberpunk anime female rendered in two modes:
 
-**Color palette:** Near-black backgrounds, cold blue accents, teal/cyan highlights, sparse orange/red from neon signage. The character stays desaturated.
+1. **High-contrast B&W manga** - Heavy ink work, aggressive linework, seinen manga aesthetic with mechanical details
+2. **3D cyberpunk portraiture** - Volumetric lighting, neon blue highlights, rain, dark metallic surfaces
+
+Trigger word: `tetsuo_character`
 
 ## Quick Start
 

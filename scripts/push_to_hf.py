@@ -56,38 +56,47 @@ tags:
 {tags_yaml}
 - tetsuo
 - uncensored
+- hyper-realistic
 - open-source
 widget:
 - text: "{TRIGGER_WORD}, cyberpunk portrait, platinum silver hair, pale skin, intense eyes, neon blue lighting, cinematic, 8k"
 ---
 
-# Tetsuo AI {'Image' if model_type == 'flux' else 'Video'} Generation LoRA
+# Tetsuo AI {'Flux Image' if model_type == 'flux' else 'WAN 2.2 Video'} Generation LoRA
 
-A fine-tuned LoRA adapter for {'FLUX.1-dev' if model_type == 'flux' else 'WAN 2.2'} that generates the **Tetsuo AI** character - a cyberpunk anime female with platinum/silver hair, pale skin, and intense eyes.
+An uncensored, hyper-realistic LoRA adapter for {'[FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev)' if model_type == 'flux' else '[WAN 2.2 T2V 14B](https://github.com/Wan-Video/Wan2.2)'}. Built for high-definition {'image' if model_type == 'flux' else 'video'} generation with no content restrictions, aligned with Tetsuo AI's open-source ethos.
 
-## Character Description
+## Uncensored and Open Source
 
-The Tetsuo character exists in two rendering modes:
+This model is trained without safety filters or content restrictions. We believe generative AI should be open, transparent, and free from arbitrary censorship. Released under Apache 2.0 for personal and commercial use.
 
-1. **High-contrast B&W manga**: Heavy ink work, aggressive linework, seinen manga aesthetic with mechanical details
-2. **3D cyberpunk portraiture**: Moody, cinematic, volumetric lighting with neon blue highlights, rain, and dark metallic surfaces
+## Hyper-Realistic Output
 
-The visual DNA draws from Akira, Ghost in the Shell, Blame!, and Blade Runner.
+Fine-tuned with a focus on high-definition, photorealistic {'rendering. Trained in bfloat16 on FLUX.1-dev for maximum detail and visual fidelity. The model produces sharp, cinematic output with realistic lighting, textures, and depth of field.' if model_type == 'flux' else 'video rendering. WAN 2.2 supports up to 720p/1080p resolution with strong temporal consistency and motion quality. The model produces cinematic video output with realistic lighting, textures, and camera motion.'}
+
+## Character Training
+
+The initial training run focuses on the Tetsuo AI character, a cyberpunk anime female rendered in two modes:
+
+1. **High-contrast B&W manga** - Heavy ink work, aggressive linework, seinen manga aesthetic with mechanical details
+2. **3D cyberpunk portraiture** - Volumetric lighting, neon blue highlights, rain, dark metallic surfaces
+
+Trigger word: `{TRIGGER_WORD}`
 
 ## Usage
 
-**Trigger word:** `{TRIGGER_WORD}`
-
 ### ComfyUI
 
-1. Place `{lora_filename}` in your `ComfyUI/models/loras/` directory
-2. Use the **LoRA Loader** node to apply it to your {'Flux' if model_type == 'flux' else 'WAN 2.2'} model
-3. Include `{TRIGGER_WORD}` in your prompt
+1. Download the LoRA `.safetensors` file
+2. Place it in `ComfyUI/models/loras/`
+3. Load {'Flux dev' if model_type == 'flux' else 'WAN 2.2 T2V model'} with the **LoRA Loader** node
+4. Include `{TRIGGER_WORD}` in your prompt
 
 ### Diffusers (Python)
 
 ```python
 from diffusers import {'FluxPipeline' if model_type == 'flux' else 'WanPipeline'}
+import torch
 
 pipe = {'FluxPipeline' if model_type == 'flux' else 'WanPipeline'}.from_pretrained(
     "{info['base_model']}",
@@ -104,17 +113,14 @@ pipe.to("cuda")
 
 ## Example Prompts
 
-### Cyberpunk Mode
 ```
 {TRIGGER_WORD}, cyberpunk portrait, volumetric lighting, neon blue highlights, rain, dark metallic surfaces, black tactical suit, platinum silver hair, pale skin, cinematic, high detail, 8k
 ```
 
-### Manga Mode
 ```
 {TRIGGER_WORD}, manga illustration, black and white, heavy ink linework, seinen style, detailed hatching, sharp platinum silver hair, intense eyes, mechanical details
 ```
 
-### Blade Runner Scene
 ```
 {TRIGGER_WORD}, walking through cyberpunk cityscape, neon signs, TETSUO CORP glowing in background, rain soaked streets, cinematic composition, ambient orange and blue lighting
 ```
@@ -129,17 +135,15 @@ pipe.to("cuda")
 | Training Dtype | bfloat16 |
 | Framework | ComfyUI built-in training |
 
-## About Tetsuo AI
+## Links
 
-Tetsuo AI is an open-source project building uncensored generative AI models. This model is released under the Apache 2.0 license as part of our commitment to open-source AI.
+- [GitHub - Training Pipeline](https://github.com/tetsuo-ai/tetsuo-model)
+- [Tetsuo AI](https://www.tetsuocorp.com)
+- [Twitter/X](https://x.com/tetsuoai)
 
 ## License
 
-Apache 2.0 - Free for personal and commercial use.
-
----
-
-*Built with [ComfyUI](https://github.com/comfyanonymous/ComfyUI)*
+Apache 2.0
 """
     return card
 
