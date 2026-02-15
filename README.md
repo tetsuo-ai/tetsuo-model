@@ -1,6 +1,6 @@
 # Tetsuo AI - Image & Video Generation Model
 
-Fine-tuned LoRA adapters for generating the **Tetsuo AI** character using [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (images) and [HunyuanVideo](https://huggingface.co/tencent/HunyuanVideo) (video).
+Fine-tuned LoRA adapters for generating the **Tetsuo AI** character using [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (images) and [WAN 2.2](https://github.com/Wan-Video/Wan2.2) (video).
 
 Uncensored, open-source, high-definition generative models aligned with Tetsuo's open-source ethos.
 
@@ -44,32 +44,34 @@ python scripts/tetsuo_train_config.py submit --steps 1500 --rank 32 --lr 1e-4
 
 Or load `workflows/tetsuo_flux_train.json` directly in the ComfyUI web UI.
 
-### 3. Train Hunyuan Video LoRA
+### 3. Train WAN 2.2 LoRA (Video)
 ```bash
-python scripts/tetsuo_video_train.py setup    # Install Musubi Tuner
-python scripts/tetsuo_video_train.py prepare  # Setup dataset structure
-python scripts/tetsuo_video_train.py train    # Launch training
+# Same ComfyUI built-in training, just different model
+python scripts/tetsuo_train_config.py submit --model wan --steps 1000
 ```
+
+Or load `workflows/tetsuo_wan_train.json` in the ComfyUI web UI.
 
 ### 4. Push to HuggingFace
 ```bash
-python scripts/push_to_hf.py --lora_path output/tetsuo_v1.safetensors --model_type flux
-python scripts/push_to_hf.py --lora_path output/tetsuo_hunyuan_v1.safetensors --model_type hunyuan_video
+python scripts/push_to_hf.py --lora_path output/tetsuo_flux_v1.safetensors --model_type flux
+python scripts/push_to_hf.py --lora_path output/tetsuo_wan_v1.safetensors --model_type wan
 ```
 
 ## Training Config
 
-| Parameter | Flux (Image) | Hunyuan (Video) |
+| Parameter | Flux (Image) | WAN 2.2 (Video) |
 |-----------|-------------|-----------------|
-| Base Model | FLUX.1-dev | HunyuanVideo |
+| Base Model | FLUX.1-dev | WAN 2.2 T2V 14B |
 | Method | LoRA | LoRA |
 | Rank | 32 | 32 |
 | Steps | 1500 | 1000 |
 | Learning Rate | 1e-4 | 1e-4 |
 | Optimizer | AdamW | AdamW |
 | Dtype | bf16 | bf16 |
-| Batch Size | 1 (eff. 4) | 1 |
+| Batch Size | 1 (eff. 4) | 1 (eff. 4) |
 | Bucket Mode | Yes | Yes |
+| Training | ComfyUI built-in | ComfyUI built-in |
 | Trigger Word | `tetsuo_character` | `tetsuo_character` |
 
 ## Project Structure
@@ -78,14 +80,12 @@ python scripts/push_to_hf.py --lora_path output/tetsuo_hunyuan_v1.safetensors --
 tetsuo-model/
 ├── scripts/
 │   ├── tetsuo_dataset_prep.py    # Dataset validation, resizing, captioning
-│   ├── tetsuo_train_config.py    # ComfyUI workflow generation & submission
-│   ├── tetsuo_video_train.py     # Hunyuan Video training via Musubi Tuner
+│   ├── tetsuo_train_config.py    # ComfyUI workflow generation & submission (Flux + WAN 2.2)
 │   └── push_to_hf.py            # HuggingFace upload with model cards
 ├── workflows/
-│   ├── tetsuo_flux_train.json    # ComfyUI training workflow (API format)
+│   ├── tetsuo_flux_train.json    # ComfyUI Flux training workflow (API format)
+│   ├── tetsuo_wan_train.json     # ComfyUI WAN 2.2 training workflow (API format)
 │   └── tetsuo_flux_inference.json # ComfyUI inference workflow
-├── configs/
-│   └── tetsuo_hunyuan_config.toml # Musubi Tuner video training config
 ├── dataset/
 │   ├── raw/                       # Raw training images (add yours here)
 │   └── train/                     # Processed training-ready dataset

@@ -2,22 +2,21 @@
   "1": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "flux1-dev.safetensors",
+      "unet_name": "wan2.2_t2v_14B_bf16.safetensors",
       "weight_dtype": "default"
     }
   },
   "2": {
-    "class_type": "DualCLIPLoader",
+    "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp16.safetensors",
-      "type": "flux"
+      "clip_name": "umt5xxl_fp16.safetensors",
+      "type": "wan"
     }
   },
   "3": {
     "class_type": "VAELoader",
     "inputs": {
-      "vae_name": "ae.safetensors"
+      "vae_name": "wan_2.2_vae.safetensors"
     }
   },
   "4": {
@@ -69,7 +68,7 @@
       ],
       "batch_size": 1,
       "grad_accumulation_steps": 4,
-      "steps": 1500,
+      "steps": 1000,
       "learning_rate": 0.0001,
       "rank": 32,
       "optimizer": "AdamW",
@@ -93,7 +92,7 @@
         "7",
         0
       ],
-      "prefix": "loras/tetsuo_flux_v1",
+      "prefix": "loras/tetsuo_wan_v1",
       "steps": [
         "7",
         2
@@ -107,7 +106,7 @@
         "7",
         1
       ],
-      "filename_prefix": "tetsuo_flux_loss"
+      "filename_prefix": "tetsuo_wan_loss"
     }
   },
   "10": {

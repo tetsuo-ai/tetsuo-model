@@ -1,18 +1,22 @@
 """
 Tetsuo AI Training Configuration
 
-Generates ComfyUI API workflow JSONs for Flux LoRA training.
+Generates ComfyUI API workflow JSONs for Flux (image) and WAN 2.2 (video) LoRA training.
 Can also submit workflows to a running ComfyUI server.
 
 Usage:
-    # Generate workflow JSON:
-    python scripts/tetsuo_train_config.py generate
+    # Generate Flux image training workflow:
+    python scripts/tetsuo_train_config.py generate --model flux
+
+    # Generate WAN 2.2 video training workflow:
+    python scripts/tetsuo_train_config.py generate --model wan
 
     # Submit to running ComfyUI server:
-    python scripts/tetsuo_train_config.py submit
+    python scripts/tetsuo_train_config.py submit --model flux
+    python scripts/tetsuo_train_config.py submit --model wan
 
-    # Submit with custom settings:
-    python scripts/tetsuo_train_config.py submit --steps 2000 --rank 64 --lr 5e-5
+    # Custom settings:
+    python scripts/tetsuo_train_config.py submit --model flux --steps 2000 --rank 64 --lr 5e-5
 """
 
 import argparse
@@ -21,23 +25,39 @@ import sys
 import uuid
 from pathlib import Path
 
-# Default training hyperparameters optimized for Flux character training
+# Model presets
+MODEL_PRESETS = {
+    "flux": {
+        "unet_name": "flux1-dev.safetensors",
+        "clip_name1": "clip_l.safetensors",
+        "clip_name2": "t5xxl_fp16.safetensors",
+        "vae_name": "ae.safetensors",
+        "clip_type": "flux",
+        "clip_loader": "DualCLIPLoader",
+        "lora_prefix": "loras/tetsuo_flux_v1",
+        "loss_graph_prefix": "tetsuo_flux_loss",
+        "steps": 1500,
+        "learning_rate": 0.0001,
+    },
+    "wan": {
+        "unet_name": "wan2.2_t2v_14B_bf16.safetensors",
+        "clip_name1": "umt5xxl_fp16.safetensors",
+        "clip_name2": None,  # WAN uses single text encoder
+        "vae_name": "wan_2.2_vae.safetensors",
+        "clip_type": None,  # Uses CLIPLoader, not DualCLIPLoader
+        "clip_loader": "CLIPLoader",
+        "lora_prefix": "loras/tetsuo_wan_v1",
+        "loss_graph_prefix": "tetsuo_wan_loss",
+        "steps": 1000,
+        "learning_rate": 0.0001,
+    },
+}
+
+# Shared training defaults
 DEFAULTS = {
-    # Model paths (user must set these to match their downloaded files)
-    "unet_name": "flux1-dev.safetensors",
-    "clip_name1": "clip_l.safetensors",
-    "clip_name2": "t5xxl_fp16.safetensors",
-    "vae_name": "ae.safetensors",
-    "clip_type": "flux",
-
-    # Dataset
     "dataset_folder": "tetsuo_dataset",
-
-    # Training params
     "batch_size": 1,
     "grad_accumulation_steps": 4,
-    "steps": 1500,
-    "learning_rate": 0.0001,
     "rank": 32,
     "optimizer": "AdamW",
     "loss_function": "MSE",
@@ -51,20 +71,14 @@ DEFAULTS = {
     "existing_lora": "[None]",
     "bucket_mode": True,
     "bypass_mode": False,
-
-    # Output
-    "lora_prefix": "loras/tetsuo_v1",
-    "loss_graph_prefix": "tetsuo_loss",
-
-    # Server
     "server_address": "127.0.0.1:8188",
 }
 
 
 def build_training_workflow(config: dict) -> dict:
-    """Build a ComfyUI API-format workflow for Flux LoRA training."""
+    """Build a ComfyUI API-format workflow for Flux or WAN 2.2 LoRA training."""
+    # Node 1: Load UNET (works for both Flux and WAN 2.2)
     workflow = {
-        # Node 1: Load Flux UNET
         "1": {
             "class_type": "UNETLoader",
             "inputs": {
@@ -72,103 +86,117 @@ def build_training_workflow(config: dict) -> dict:
                 "weight_dtype": "default",
             },
         },
-        # Node 2: Load Dual CLIP (CLIP-L + T5-XXL for Flux)
-        "2": {
+    }
+
+    # Node 2: Load text encoder(s)
+    if config["clip_loader"] == "DualCLIPLoader":
+        workflow["2"] = {
             "class_type": "DualCLIPLoader",
             "inputs": {
                 "clip_name1": config["clip_name1"],
                 "clip_name2": config["clip_name2"],
                 "type": config["clip_type"],
             },
-        },
-        # Node 3: Load VAE
-        "3": {
-            "class_type": "VAELoader",
+        }
+    else:
+        # WAN 2.2 uses single CLIPLoader (UMT5-XXL)
+        workflow["2"] = {
+            "class_type": "CLIPLoader",
             "inputs": {
-                "vae_name": config["vae_name"],
+                "clip_name": config["clip_name1"],
+                "type": "wan",
             },
-        },
-        # Node 4: Load Image+Text Dataset
-        "4": {
-            "class_type": "LoadImageTextDataSetFromFolder",
-            "inputs": {
-                "folder": config["dataset_folder"],
-            },
-        },
-        # Node 5: VAE Encode (images -> latents)
-        # Receives list of images from node 4, runs per-image
-        "5": {
-            "class_type": "VAEEncode",
-            "inputs": {
-                "pixels": ["4", 0],  # images from dataset loader
-                "vae": ["3", 0],     # VAE model
-            },
-        },
-        # Node 6: CLIP Text Encode (captions -> conditioning)
-        # Receives list of texts from node 4, runs per-text
-        "6": {
-            "class_type": "CLIPTextEncode",
-            "inputs": {
-                "text": ["4", 1],    # texts from dataset loader
-                "clip": ["2", 0],    # CLIP model
-            },
-        },
-        # Node 7: Train LoRA (core training node)
-        "7": {
-            "class_type": "TrainLoraNode",
-            "inputs": {
-                "model": ["1", 0],               # Flux UNET
-                "latents": ["5", 0],             # encoded latents
-                "positive": ["6", 0],            # encoded conditioning
-                "batch_size": config["batch_size"],
-                "grad_accumulation_steps": config["grad_accumulation_steps"],
-                "steps": config["steps"],
-                "learning_rate": config["learning_rate"],
-                "rank": config["rank"],
-                "optimizer": config["optimizer"],
-                "loss_function": config["loss_function"],
-                "seed": config["seed"],
-                "training_dtype": config["training_dtype"],
-                "lora_dtype": config["lora_dtype"],
-                "algorithm": config["algorithm"],
-                "gradient_checkpointing": config["gradient_checkpointing"],
-                "checkpoint_depth": config["checkpoint_depth"],
-                "offloading": config["offloading"],
-                "existing_lora": config["existing_lora"],
-                "bucket_mode": config["bucket_mode"],
-                "bypass_mode": config["bypass_mode"],
-            },
-        },
-        # Node 8: Save LoRA weights
-        "8": {
-            "class_type": "SaveLoRA",
-            "inputs": {
-                "lora": ["7", 0],    # LORA_MODEL from training
-                "prefix": config["lora_prefix"],
-                "steps": ["7", 2],   # steps count from training
-            },
-        },
-        # Node 9: Plot Loss Graph
-        "9": {
-            "class_type": "LossGraphNode",
-            "inputs": {
-                "loss": ["7", 1],    # LOSS_MAP from training
-                "filename_prefix": config["loss_graph_prefix"],
-            },
+        }
+
+    # Node 3: Load VAE
+    workflow["3"] = {
+        "class_type": "VAELoader",
+        "inputs": {
+            "vae_name": config["vae_name"],
         },
     }
 
-    # If bucket_mode is enabled, insert ResolutionBucket node between
-    # VAEEncode/CLIPTextEncode and TrainLoraNode
+    # Node 4: Load Image+Text Dataset
+    workflow["4"] = {
+        "class_type": "LoadImageTextDataSetFromFolder",
+        "inputs": {
+            "folder": config["dataset_folder"],
+        },
+    }
+
+    # Node 5: VAE Encode (images -> latents)
+    workflow["5"] = {
+        "class_type": "VAEEncode",
+        "inputs": {
+            "pixels": ["4", 0],
+            "vae": ["3", 0],
+        },
+    }
+
+    # Node 6: CLIP Text Encode (captions -> conditioning)
+    workflow["6"] = {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+            "text": ["4", 1],
+            "clip": ["2", 0],
+        },
+    }
+
+    # Node 7: Train LoRA (core training node - works for both Flux and WAN 2.2)
+    workflow["7"] = {
+        "class_type": "TrainLoraNode",
+        "inputs": {
+            "model": ["1", 0],
+            "latents": ["5", 0],
+            "positive": ["6", 0],
+            "batch_size": config["batch_size"],
+            "grad_accumulation_steps": config["grad_accumulation_steps"],
+            "steps": config["steps"],
+            "learning_rate": config["learning_rate"],
+            "rank": config["rank"],
+            "optimizer": config["optimizer"],
+            "loss_function": config["loss_function"],
+            "seed": config["seed"],
+            "training_dtype": config["training_dtype"],
+            "lora_dtype": config["lora_dtype"],
+            "algorithm": config["algorithm"],
+            "gradient_checkpointing": config["gradient_checkpointing"],
+            "checkpoint_depth": config["checkpoint_depth"],
+            "offloading": config["offloading"],
+            "existing_lora": config["existing_lora"],
+            "bucket_mode": config["bucket_mode"],
+            "bypass_mode": config["bypass_mode"],
+        },
+    }
+
+    # Node 8: Save LoRA weights
+    workflow["8"] = {
+        "class_type": "SaveLoRA",
+        "inputs": {
+            "lora": ["7", 0],
+            "prefix": config["lora_prefix"],
+            "steps": ["7", 2],
+        },
+    }
+
+    # Node 9: Plot Loss Graph
+    workflow["9"] = {
+        "class_type": "LossGraphNode",
+        "inputs": {
+            "loss": ["7", 1],
+            "filename_prefix": config["loss_graph_prefix"],
+        },
+    }
+
+    # If bucket_mode is enabled, insert ResolutionBucket node
     if config["bucket_mode"]:
         workflow["10"] = {
             "class_type": "ResolutionBucket",
             "inputs": {
-                "latents": ["5", 0],    # latents from VAEEncode
-                "conditioning": ["6", 0],  # conditioning from CLIPTextEncode
+                "latents": ["5", 0],
+                "conditioning": ["6", 0],
             },
         }
-        # Rewire training node to use bucketed outputs
         workflow["7"]["inputs"]["latents"] = ["10", 0]
         workflow["7"]["inputs"]["positive"] = ["10", 1]
 
@@ -308,13 +336,46 @@ def save_workflow(workflow: dict, output_path: str):
     print(f"Workflow saved to: {output_path}")
 
 
+def build_config(model_type: str, args=None) -> dict:
+    """Merge model preset + shared defaults + CLI overrides into a single config."""
+    preset = MODEL_PRESETS[model_type]
+    config = dict(DEFAULTS)
+    config.update(preset)
+
+    if args:
+        overrides = {}
+        if hasattr(args, "steps") and args.steps is not None:
+            overrides["steps"] = args.steps
+        if hasattr(args, "lr") and args.lr is not None:
+            overrides["learning_rate"] = args.lr
+        if hasattr(args, "rank") and args.rank is not None:
+            overrides["rank"] = args.rank
+        if hasattr(args, "batch_size") and args.batch_size is not None:
+            overrides["batch_size"] = args.batch_size
+        if hasattr(args, "grad_acc") and args.grad_acc is not None:
+            overrides["grad_accumulation_steps"] = args.grad_acc
+        if hasattr(args, "seed") and args.seed is not None:
+            overrides["seed"] = args.seed
+        if hasattr(args, "dataset_folder") and args.dataset_folder is not None:
+            overrides["dataset_folder"] = args.dataset_folder
+        if hasattr(args, "no_bucket") and args.no_bucket:
+            overrides["bucket_mode"] = False
+        if hasattr(args, "bypass") and args.bypass:
+            overrides["bypass_mode"] = True
+        if hasattr(args, "offload") and args.offload:
+            overrides["offloading"] = True
+        config.update(overrides)
+
+    return config
+
+
 def main():
     parser = argparse.ArgumentParser(description="Tetsuo AI Training Config")
     subparsers = parser.add_subparsers(dest="command")
 
     # Generate command
     gen_parser = subparsers.add_parser("generate", help="Generate workflow JSON files")
-    gen_parser.add_argument("--output", default="workflows/tetsuo_flux_train.json")
+    gen_parser.add_argument("--output", default=None, help="Output path (auto-named if omitted)")
 
     # Submit command
     sub_parser = subparsers.add_parser("submit", help="Submit training workflow to ComfyUI")
@@ -324,23 +385,21 @@ def main():
     inf_parser = subparsers.add_parser("inference", help="Generate inference workflow")
     inf_parser.add_argument("--prompt", required=True, help="Generation prompt")
     inf_parser.add_argument("--output", default="workflows/tetsuo_flux_inference.json")
-    inf_parser.add_argument("--lora_name", default="tetsuo_v1.safetensors")
+    inf_parser.add_argument("--lora_name", default="tetsuo_flux_v1.safetensors")
     inf_parser.add_argument("--width", type=int, default=1024)
     inf_parser.add_argument("--height", type=int, default=1024)
 
     # Shared training params for generate and submit
     for p in [gen_parser, sub_parser]:
-        p.add_argument("--unet_name", default=DEFAULTS["unet_name"])
-        p.add_argument("--clip_name1", default=DEFAULTS["clip_name1"])
-        p.add_argument("--clip_name2", default=DEFAULTS["clip_name2"])
-        p.add_argument("--vae_name", default=DEFAULTS["vae_name"])
-        p.add_argument("--dataset_folder", default=DEFAULTS["dataset_folder"])
-        p.add_argument("--steps", type=int, default=DEFAULTS["steps"])
-        p.add_argument("--lr", type=float, default=DEFAULTS["learning_rate"])
-        p.add_argument("--rank", type=int, default=DEFAULTS["rank"])
-        p.add_argument("--batch_size", type=int, default=DEFAULTS["batch_size"])
-        p.add_argument("--grad_acc", type=int, default=DEFAULTS["grad_accumulation_steps"])
-        p.add_argument("--seed", type=int, default=DEFAULTS["seed"])
+        p.add_argument("--model", choices=["flux", "wan"], default="flux",
+                        help="Base model: flux (images) or wan (WAN 2.2 video)")
+        p.add_argument("--dataset_folder", default=None)
+        p.add_argument("--steps", type=int, default=None)
+        p.add_argument("--lr", type=float, default=None)
+        p.add_argument("--rank", type=int, default=None)
+        p.add_argument("--batch_size", type=int, default=None)
+        p.add_argument("--grad_acc", type=int, default=None)
+        p.add_argument("--seed", type=int, default=None)
         p.add_argument("--no_bucket", action="store_true", help="Disable bucket mode")
         p.add_argument("--bypass", action="store_true", help="Enable bypass mode")
         p.add_argument("--offload", action="store_true", help="Enable RAM offloading")
@@ -348,43 +407,33 @@ def main():
     args = parser.parse_args()
 
     if args.command in ("generate", "submit"):
-        config = dict(DEFAULTS)
-        config.update({
-            "unet_name": args.unet_name,
-            "clip_name1": args.clip_name1,
-            "clip_name2": args.clip_name2,
-            "vae_name": args.vae_name,
-            "dataset_folder": args.dataset_folder,
-            "steps": args.steps,
-            "learning_rate": args.lr,
-            "rank": args.rank,
-            "batch_size": args.batch_size,
-            "grad_accumulation_steps": args.grad_acc,
-            "seed": args.seed,
-            "bucket_mode": not args.no_bucket,
-            "bypass_mode": args.bypass,
-            "offloading": args.offload,
-        })
-
+        model_type = args.model
+        config = build_config(model_type, args)
         workflow = build_training_workflow(config)
 
+        model_label = "Flux (image)" if model_type == "flux" else "WAN 2.2 (video)"
+
         if args.command == "generate":
-            save_workflow(workflow, args.output)
-            print("\nTraining config:")
+            output = args.output or f"workflows/tetsuo_{model_type}_train.json"
+            save_workflow(workflow, output)
+            print(f"\n{model_label} training config:")
+            print(f"  Model: {config['unet_name']}")
             print(f"  Steps: {config['steps']}")
             print(f"  Learning rate: {config['learning_rate']}")
             print(f"  Rank: {config['rank']}")
             print(f"  Batch size: {config['batch_size']} (effective: {config['batch_size'] * config['grad_accumulation_steps']})")
             print(f"  Bucket mode: {config['bucket_mode']}")
             print(f"  Algorithm: {config['algorithm']}")
-            print(f"\nTo use: Load this JSON in ComfyUI or run 'python scripts/tetsuo_train_config.py submit'")
+            print(f"\nTo use: Load this JSON in ComfyUI or run:")
+            print(f"  python scripts/tetsuo_train_config.py submit --model {model_type}")
         else:
-            print("Submitting training workflow to ComfyUI...")
+            print(f"Submitting {model_label} training workflow to ComfyUI...")
+            print(f"  Model: {config['unet_name']}")
             print(f"  Steps: {config['steps']}, LR: {config['learning_rate']}, Rank: {config['rank']}")
             submit_workflow(workflow, args.server)
 
     elif args.command == "inference":
-        config = dict(DEFAULTS)
+        config = build_config("flux")
         workflow = build_inference_workflow(
             config, args.prompt,
             width=args.width, height=args.height,
@@ -395,9 +444,10 @@ def main():
     else:
         parser.print_help()
         print("\nQuick start:")
-        print("  1. Generate training workflow:  python scripts/tetsuo_train_config.py generate")
-        print("  2. Submit to ComfyUI server:    python scripts/tetsuo_train_config.py submit")
-        print("  3. Generate inference workflow:  python scripts/tetsuo_train_config.py inference --prompt 'tetsuo_character, ...'")
+        print("  1. Train Flux (images):   python scripts/tetsuo_train_config.py generate --model flux")
+        print("  2. Train WAN 2.2 (video): python scripts/tetsuo_train_config.py generate --model wan")
+        print("  3. Submit to ComfyUI:     python scripts/tetsuo_train_config.py submit --model flux")
+        print("  4. Inference workflow:     python scripts/tetsuo_train_config.py inference --prompt 'tetsuo_character, ...'")
 
 
 if __name__ == "__main__":

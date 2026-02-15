@@ -9,13 +9,13 @@ Prerequisites:
 
 Usage:
     # Push Flux LoRA:
-    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_v1.safetensors --model_type flux
+    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_flux_v1.safetensors --model_type flux
 
-    # Push Hunyuan Video LoRA:
-    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_hunyuan_v1.safetensors --model_type hunyuan_video
+    # Push WAN 2.2 Video LoRA:
+    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_wan_v1.safetensors --model_type wan
 
     # Custom repo name:
-    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_v1.safetensors --repo_name my-org/tetsuo-flux-lora
+    python scripts/push_to_hf.py --lora_path output/loras/tetsuo_flux_v1.safetensors --repo_name my-org/tetsuo-flux-lora
 """
 
 import argparse
@@ -32,11 +32,11 @@ MODEL_CARDS = {
         "tags": ["flux", "lora", "text-to-image", "cyberpunk", "anime", "manga", "character"],
         "default_repo": "tetsuo-ai-flux-lora",
     },
-    "hunyuan_video": {
-        "base_model": "tencent/HunyuanVideo",
+    "wan": {
+        "base_model": "Wan-AI/Wan2.2-T2V-14B",
         "pipeline_tag": "text-to-video",
-        "tags": ["hunyuan-video", "lora", "text-to-video", "cyberpunk", "anime", "character"],
-        "default_repo": "tetsuo-ai-hunyuan-video-lora",
+        "tags": ["wan", "wan2.2", "lora", "text-to-video", "cyberpunk", "anime", "character"],
+        "default_repo": "tetsuo-ai-wan-video-lora",
     },
 }
 
@@ -63,7 +63,7 @@ widget:
 
 # Tetsuo AI {'Image' if model_type == 'flux' else 'Video'} Generation LoRA
 
-A fine-tuned LoRA adapter for {'FLUX.1-dev' if model_type == 'flux' else 'HunyuanVideo'} that generates the **Tetsuo AI** character - a cyberpunk anime female with platinum/silver hair, pale skin, and intense eyes.
+A fine-tuned LoRA adapter for {'FLUX.1-dev' if model_type == 'flux' else 'WAN 2.2'} that generates the **Tetsuo AI** character - a cyberpunk anime female with platinum/silver hair, pale skin, and intense eyes.
 
 ## Character Description
 
@@ -81,15 +81,15 @@ The visual DNA draws from Akira, Ghost in the Shell, Blame!, and Blade Runner.
 ### ComfyUI
 
 1. Place `{lora_filename}` in your `ComfyUI/models/loras/` directory
-2. Use the **LoRA Loader** node to apply it to your {'Flux' if model_type == 'flux' else 'HunyuanVideo'} model
+2. Use the **LoRA Loader** node to apply it to your {'Flux' if model_type == 'flux' else 'WAN 2.2'} model
 3. Include `{TRIGGER_WORD}` in your prompt
 
 ### Diffusers (Python)
 
 ```python
-from diffusers import {'FluxPipeline' if model_type == 'flux' else 'HunyuanVideoPipeline'}
+from diffusers import {'FluxPipeline' if model_type == 'flux' else 'WanPipeline'}
 
-pipe = {'FluxPipeline' if model_type == 'flux' else 'HunyuanVideoPipeline'}.from_pretrained(
+pipe = {'FluxPipeline' if model_type == 'flux' else 'WanPipeline'}.from_pretrained(
     "{info['base_model']}",
     torch_dtype=torch.bfloat16,
 )
@@ -225,8 +225,8 @@ def push_to_hub(lora_path: str, model_type: str, repo_name: str | None = None,
 def main():
     parser = argparse.ArgumentParser(description="Push Tetsuo AI models to HuggingFace")
     parser.add_argument("--lora_path", required=True, help="Path to trained LoRA .safetensors file")
-    parser.add_argument("--model_type", choices=["flux", "hunyuan_video"], required=True,
-                        help="Type of base model the LoRA was trained on")
+    parser.add_argument("--model_type", choices=["flux", "wan"], required=True,
+                        help="Type of base model the LoRA was trained on (flux=images, wan=video)")
     parser.add_argument("--repo_name", default=None,
                         help="HuggingFace repo name (default: username/tetsuo-ai-{type}-lora)")
     parser.add_argument("--private", action="store_true", help="Make repository private")
