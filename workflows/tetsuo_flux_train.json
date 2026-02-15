@@ -1,0 +1,126 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux1-dev.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp16.safetensors",
+      "type": "flux"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "LoadImageTextDataSetFromFolder",
+    "inputs": {
+      "folder": "tetsuo_dataset"
+    }
+  },
+  "5": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": [
+        "4",
+        1
+      ],
+      "clip": [
+        "2",
+        0
+      ]
+    }
+  },
+  "7": {
+    "class_type": "TrainLoraNode",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "latents": [
+        "10",
+        0
+      ],
+      "positive": [
+        "10",
+        1
+      ],
+      "batch_size": 1,
+      "grad_accumulation_steps": 4,
+      "steps": 1500,
+      "learning_rate": 0.0001,
+      "rank": 32,
+      "optimizer": "AdamW",
+      "loss_function": "MSE",
+      "seed": 42,
+      "training_dtype": "bf16",
+      "lora_dtype": "bf16",
+      "algorithm": "lora",
+      "gradient_checkpointing": true,
+      "checkpoint_depth": 1,
+      "offloading": false,
+      "existing_lora": "[None]",
+      "bucket_mode": true,
+      "bypass_mode": false
+    }
+  },
+  "8": {
+    "class_type": "SaveLoRA",
+    "inputs": {
+      "lora": [
+        "7",
+        0
+      ],
+      "prefix": "loras/tetsuo_v1",
+      "steps": [
+        "7",
+        2
+      ]
+    }
+  },
+  "9": {
+    "class_type": "LossGraphNode",
+    "inputs": {
+      "loss": [
+        "7",
+        1
+      ],
+      "filename_prefix": "tetsuo_loss"
+    }
+  },
+  "10": {
+    "class_type": "ResolutionBucket",
+    "inputs": {
+      "latents": [
+        "5",
+        0
+      ],
+      "conditioning": [
+        "6",
+        0
+      ]
+    }
+  }
+}
