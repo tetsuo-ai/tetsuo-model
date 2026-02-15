@@ -28,10 +28,10 @@ from pathlib import Path
 # Model presets
 MODEL_PRESETS = {
     "flux": {
-        "unet_name": "flux1-dev.safetensors",
+        "unet_name": "flux_dev_fp8_scaled_diffusion_model.safetensors",
         "clip_name1": "clip_l.safetensors",
         "clip_name2": "t5xxl_fp16.safetensors",
-        "vae_name": "ae.safetensors",
+        "vae_name": "flux-vae-bf16.safetensors",
         "clip_type": "flux",
         "clip_loader": "DualCLIPLoader",
         "lora_prefix": "loras/tetsuo_flux_v1",
@@ -40,10 +40,10 @@ MODEL_PRESETS = {
         "learning_rate": 0.0001,
     },
     "wan": {
-        "unet_name": "wan2.2_t2v_14B_bf16.safetensors",
-        "clip_name1": "umt5xxl_fp16.safetensors",
+        "unet_name": "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
+        "clip_name1": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
         "clip_name2": None,  # WAN uses single text encoder
-        "vae_name": "wan_2.2_vae.safetensors",
+        "vae_name": "wan2.2_vae.safetensors",
         "clip_type": None,  # Uses CLIPLoader, not DualCLIPLoader
         "clip_loader": "CLIPLoader",
         "lora_prefix": "loras/tetsuo_wan_v1",

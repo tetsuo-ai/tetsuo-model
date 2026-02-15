@@ -2,21 +2,21 @@
   "1": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "wan2.2_t2v_14B_bf16.safetensors",
+      "unet_name": "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
       "weight_dtype": "default"
     }
   },
   "2": {
     "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name": "umt5xxl_fp16.safetensors",
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
       "type": "wan"
     }
   },
   "3": {
     "class_type": "VAELoader",
     "inputs": {
-      "vae_name": "wan_2.2_vae.safetensors"
+      "vae_name": "wan2.2_vae.safetensors"
     }
   },
   "4": {
