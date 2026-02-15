@@ -35,7 +35,7 @@ MODEL_CARDS = {
     "wan": {
         "base_model": "Wan-AI/Wan2.2-T2V-14B",
         "pipeline_tag": "text-to-video",
-        "tags": ["wan", "wan2.2", "lora", "text-to-video", "cyberpunk", "anime", "character"],
+        "tags": ["wan", "wan2.2", "lora", "text-to-video", "image-to-video", "cyberpunk", "anime", "character"],
         "default_repo": "tetsuo-ai-wan-video-lora",
     },
 }
